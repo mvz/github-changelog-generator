@@ -99,19 +99,15 @@ module GitHubChangelogGenerator
     # @param [Integer] total The total number of PRs to associate; used for verbose printing.
     # @return [Array] PRs without their merge_commit_sha in the branch.
     def associate_release_branch_prs(prs_left, total)
-      if prs_left.any?
-        i = total - prs_left.count
-        prs_left.reject do |pr|
-          found = false
-          if pr["events"] && (event = pr["events"].find { |e| e["event"] == "merged" }) && sha_in_release_branch?(event["commit_id"])
-            found = true
-            i += 1
-            print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
-          end
-          found
+      i = total - prs_left.count
+      prs_left.reject do |pr|
+        found = false
+        if pr["events"] && (event = pr["events"].find { |e| e["event"] == "merged" }) && sha_in_release_branch?(event["commit_id"])
+          found = true
+          i += 1
+          print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
         end
-      else
-        prs_left
+        found
       end
     end
 
