@@ -65,26 +65,9 @@ module GitHubChangelogGenerator
 
       i = 0
       prs.reject do |pr|
-        found = false
-        # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
-        # fetch that. See
-        # https://developer.github.com/v3/pulls/#get-a-single-pull-request vs.
-        # https://developer.github.com/v3/pulls/#list-pull-requests
-        if pr["events"] && (event = pr["events"].find { |e| e["event"] == "merged" })
-          # Iterate tags.reverse (oldest to newest) to find first tag of each PR.
-          if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(event["commit_id"]) })
-            pr["first_occurring_tag"] = oldest_tag["name"]
-            found = true
-            i += 1
-            print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
-          end
-        else
-          # Either there were no events or no merged event. GitHub's api can be
-          # weird like that apparently. Check for a rebased comment before erroring.
-          no_events_pr = associate_rebase_comment_prs(tags, [pr], total)
-          raise StandardError, "No merge sha found for PR #{pr['number']} via the GitHub API" unless no_events_pr.empty?
+        found = associate_tagged_pr(tags, pr)
 
-          found = true
+        if found
           i += 1
           print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
         end
@@ -133,6 +116,30 @@ module GitHubChangelogGenerator
         end
         found
       end
+    end
+
+    def associate_tagged_pr(tags, pull_request)
+      found = false
+      # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
+      # fetch that. See
+      # https://developer.github.com/v3/pulls/#get-a-single-pull-request vs.
+      # https://developer.github.com/v3/pulls/#list-pull-requests
+      if pull_request["events"] && (event = pull_request["events"].find { |e| e["event"] == "merged" })
+        # Iterate tags.reverse (oldest to newest) to find first tag of each PR.
+        if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(event["commit_id"]) })
+          pull_request["first_occurring_tag"] = oldest_tag["name"]
+          found = true
+        end
+      else
+        # Either there were no events or no merged event. GitHub's api can be
+        # weird like that apparently. Check for a rebased comment before erroring.
+        @fetcher.fetch_comments_async([pull_request])
+        rebased_found = associate_rebase_comment_pr(tags, pull_request)
+        raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API" unless rebased_found
+
+        found = true
+      end
+      found
     end
 
     def associate_rebase_comment_pr(tags, pull_request)
