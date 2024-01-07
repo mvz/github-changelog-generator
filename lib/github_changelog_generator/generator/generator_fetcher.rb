@@ -45,8 +45,7 @@ module GitHubChangelogGenerator
     def add_first_occurring_tag_to_prs(tags, prs)
       total = prs.count
 
-      prs_left = associate_tagged_prs(tags, prs, total)
-      prs_left = associate_release_branch_prs(prs_left, total)
+      prs_left = associate_tagged_or_release_branch_prs(tags, prs, total)
       prs_left = associate_rebase_comment_prs(tags, prs_left, total) if prs_left.any?
 
       Helper.log.info "Associating PRs with tags: #{total}/#{total}"
@@ -55,36 +54,18 @@ module GitHubChangelogGenerator
     end
 
     # Associate merged PRs by the merge SHA contained in each tag. If the
-    # merge_commit_sha is not found in any tag's history, skip association.
+    # merge_commit_sha is not found in any tag's history, try to associate with
+    # the release branch instead.
     #
     # @param [Array] tags The tags sorted by time, newest to oldest.
     # @param [Array] prs The PRs to associate.
     # @return [Array] PRs without their merge_commit_sha in a tag.
-    def associate_tagged_prs(tags, prs, total)
+    def associate_tagged_or_release_branch_prs(tags, prs, total)
       @fetcher.fetch_tag_shas(tags)
 
       i = 0
       prs.reject do |pr|
-        found = associate_tagged_pr(tags, pr)
-
-        if found
-          i += 1
-          print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
-        end
-        found
-      end
-    end
-
-    # Associate merged PRs by the HEAD of the release branch. If no
-    # --release-branch was specified, then the github default branch is used.
-    #
-    # @param [Array] prs_left PRs not associated with any tag.
-    # @param [Integer] total The total number of PRs to associate; used for verbose printing.
-    # @return [Array] PRs without their merge_commit_sha in the branch.
-    def associate_release_branch_prs(prs_left, total)
-      i = total - prs_left.count
-      prs_left.reject do |pr|
-        found = associate_release_branch_pr(pr)
+        found = associate_tagged_or_release_branch_pr(tags, pr)
 
         if found
           i += 1
@@ -118,17 +99,21 @@ module GitHubChangelogGenerator
       end
     end
 
-    def associate_tagged_pr(tags, pull_request)
+    def associate_tagged_or_release_branch_pr(tags, pull_request)
       found = false
       # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
       # fetch that. See
       # https://developer.github.com/v3/pulls/#get-a-single-pull-request vs.
       # https://developer.github.com/v3/pulls/#list-pull-requests
       if pull_request["events"] && (event = pull_request["events"].find { |e| e["event"] == "merged" })
+        commit_id = event["commit_id"]
+
         # Iterate tags.reverse (oldest to newest) to find first tag of each PR.
-        if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(event["commit_id"]) })
+        if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(commit_id) })
           pull_request["first_occurring_tag"] = oldest_tag["name"]
           found = true
+        else
+          found = sha_in_release_branch?(commit_id)
         end
       else
         # Either there were no events or no merged event. GitHub's api can be
@@ -137,14 +122,6 @@ module GitHubChangelogGenerator
         rebased_found = associate_rebase_comment_pr(tags, pull_request)
         raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API" unless rebased_found
 
-        found = true
-      end
-      found
-    end
-
-    def associate_release_branch_pr(pull_request)
-      found = false
-      if pull_request["events"] && (event = pull_request["events"].find { |e| e["event"] == "merged" }) && sha_in_release_branch?(event["commit_id"])
         found = true
       end
       found
