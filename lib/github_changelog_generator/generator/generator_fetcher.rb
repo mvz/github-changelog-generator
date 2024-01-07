@@ -84,9 +84,9 @@ module GitHubChangelogGenerator
     def associate_release_branch_prs(prs_left, total)
       i = total - prs_left.count
       prs_left.reject do |pr|
-        found = false
-        if pr["events"] && (event = pr["events"].find { |e| e["event"] == "merged" }) && sha_in_release_branch?(event["commit_id"])
-          found = true
+        found = associate_release_branch_pr(pr)
+
+        if found
           i += 1
           print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
         end
@@ -137,6 +137,14 @@ module GitHubChangelogGenerator
         rebased_found = associate_rebase_comment_pr(tags, pull_request)
         raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API" unless rebased_found
 
+        found = true
+      end
+      found
+    end
+
+    def associate_release_branch_pr(pull_request)
+      found = false
+      if pull_request["events"] && (event = pull_request["events"].find { |e| e["event"] == "merged" }) && sha_in_release_branch?(event["commit_id"])
         found = true
       end
       found
