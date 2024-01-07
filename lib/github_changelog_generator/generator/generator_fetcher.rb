@@ -125,25 +125,32 @@ module GitHubChangelogGenerator
       # rebased commit comment.
       @fetcher.fetch_comments_async(prs_left)
       prs_left.reject do |pr|
-        found = false
-        if pr["comments"] && (rebased_comment = pr["comments"].reverse.find { |c| c["body"].match(%r{rebased commit: ([0-9a-f]{40})}i) })
-          rebased_sha = rebased_comment["body"].match(%r{rebased commit: ([0-9a-f]{40})}i)[1]
-          if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(rebased_sha) })
-            pr["first_occurring_tag"] = oldest_tag["name"]
-            found = true
-            i += 1
-          elsif sha_in_release_branch?(rebased_sha)
-            found = true
-            i += 1
-          else
-            raise StandardError, "PR #{pr['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
-          end
+        found = associate_rebase_comment_pr(tags, pr)
+
+        if found
+          i += 1
           print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
-        else
-          puts "Warning: PR #{pr['number']} merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found"
         end
         found
       end
+    end
+
+    def associate_rebase_comment_pr(tags, pull_request)
+      found = false
+      if pull_request["comments"] && (rebased_comment = pull_request["comments"].reverse.find { |c| c["body"].match(%r{rebased commit: ([0-9a-f]{40})}i) })
+        rebased_sha = rebased_comment["body"].match(%r{rebased commit: ([0-9a-f]{40})}i)[1]
+        if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(rebased_sha) })
+          pull_request["first_occurring_tag"] = oldest_tag["name"]
+          found = true
+        elsif sha_in_release_branch?(rebased_sha)
+          found = true
+        else
+          raise StandardError, "PR #{pull_request['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
+        end
+      else
+        puts "Warning: PR #{pull_request['number']} merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found"
+      end
+      found
     end
 
     # Fill :actual_date parameter of specified issue by closed date of the commit, if it was closed by commit.
