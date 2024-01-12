@@ -117,9 +117,7 @@ module GitHubChangelogGenerator
 
     def associate_rebase_comment_pr(tags, pull_request)
       found = false
-      if pull_request["comments"] && (rebased_comment = pull_request["comments"].reverse.find { |c| c["body"].match(%r{rebased commit: ([0-9a-f]{40})}i) })
-        rebased_sha = rebased_comment["body"].match(%r{rebased commit: ([0-9a-f]{40})}i)[1]
-
+      if (rebased_sha = find_rebase_comment_sha_for_pull_request(pull_request))
         found = associate_pr_by_commit_sha(tags, pull_request, rebased_sha)
         found or raise StandardError, "PR #{pull_request['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
       else
@@ -145,6 +143,14 @@ module GitHubChangelogGenerator
       # https://developer.github.com/v3/pulls/#list-pull-requests
       event = pull_request["events"]&.find { |e| e["event"] == "merged" }
       event["commit_id"] if event
+    end
+
+    def find_rebase_comment_sha_for_pull_request(pull_request)
+      return unless pull_request["comments"]
+
+      rebased_comment = pull_request["comments"].reverse.find { |c| c["body"].match(%r{rebased commit: ([0-9a-f]{40})}i) }
+
+      rebased_comment["body"].match(%r{rebased commit: ([0-9a-f]{40})}i)[1] if rebased_comment
     end
 
     # Fill :actual_date parameter of specified issue by closed date of the commit, if it was closed by commit.
