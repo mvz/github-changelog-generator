@@ -39,9 +39,12 @@ module GitHubChangelogGenerator
     # indicate the release of each PR by git's history regardless of dates and
     # divergent branches.
     #
+    # If the merge commit is not found in any tag's history, associates with the
+    # release branch instead.
+    #
     # @param [Array] tags The tags sorted by time, newest to oldest.
     # @param [Array] prs The PRs to discover the tags of.
-    # @return [Nil] No return; PRs are updated in-place.
+    # @return [Array] PRs that could not be associated with either a tag or release branch
     def add_first_occurring_tag_to_prs(tags, prs)
       total = prs.count
 
@@ -62,6 +65,13 @@ module GitHubChangelogGenerator
       prs_left
     end
 
+    # Associate a merged PR by finding the merge or rebase SHA in each tag's
+    # contained commit SHAs. If the SHA is not found in any tag's history, try
+    # to associate with the release branch instead.
+    #
+    # @param [Array] tags The tags sorted by time, newest to oldest.
+    # @param [Array] pull_request The PR to discover the tags of.
+    # @return [boolean] Whether the PR could be associated with either a tag or the release branch
     def associate_tagged_or_release_branch_pr(tags, pull_request)
       found = false
 
@@ -95,6 +105,13 @@ module GitHubChangelogGenerator
       found
     end
 
+    # Associate a merged PR by seeking the given SHA in each tag's history. If
+    # the SHA is not found in any tag's history, try to associate with the
+    # release branch instead.
+    #
+    # @param [Array] tags The tags sorted by time, newest to oldest.
+    # @param [Hash] pull_request The PR to associate.
+    # @return [boolean] Whether the PR could be associated
     def associate_pr_by_commit_sha(tags, pull_request, commit_sha)
       # Iterate tags.reverse (oldest to newest) to find first tag of PR.
       if (oldest_tag = tags.reverse.find { |tag| tag["shas_in_tag"].include?(commit_sha) })
@@ -105,6 +122,10 @@ module GitHubChangelogGenerator
       end
     end
 
+    # Find a merged PR's merge commit SHA in the PR's merge event.
+    #
+    # @param [Hash] pull_request The PR to find the merge commit sha for.
+    # @return [String] The found commit sha
     def find_merged_sha_for_pull_request(pull_request)
       # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
       # fetch that. See
@@ -114,6 +135,10 @@ module GitHubChangelogGenerator
       event["commit_id"] if event
     end
 
+    # Find a merged PR's rebase commit SHA in the PR's rebase comment
+    #
+    # @param [Hash] pull_request The PR to find the rebase commit sha for.
+    # @return [String] The found commit sha
     def find_rebase_comment_sha_for_pull_request(pull_request)
       @fetcher.fetch_comments_async([pull_request])
       return unless pull_request["comments"]
