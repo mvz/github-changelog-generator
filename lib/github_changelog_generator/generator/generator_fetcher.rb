@@ -45,25 +45,9 @@ module GitHubChangelogGenerator
     def add_first_occurring_tag_to_prs(tags, prs)
       total = prs.count
 
-      prs_left = associate_tagged_or_release_branch_prs(tags, prs, total)
-
-      Helper.log.info "Associating PRs with tags: #{total}/#{total}"
-
-      prs_left
-    end
-
-    # Associate merged PRs by the merge SHA contained in each tag. If the
-    # merge_commit_sha is not found in any tag's history, try to associate with
-    # the release branch instead.
-    #
-    # @param [Array] tags The tags sorted by time, newest to oldest.
-    # @param [Array] prs The PRs to associate.
-    # @return [Array] PRs without their merge_commit_sha in a tag.
-    def associate_tagged_or_release_branch_prs(tags, prs, total)
       @fetcher.fetch_tag_shas(tags)
-
       i = 0
-      prs.reject do |pr|
+      prs_left = prs.reject do |pr|
         found = associate_tagged_or_release_branch_pr(tags, pr)
 
         if found
@@ -72,6 +56,10 @@ module GitHubChangelogGenerator
         end
         found
       end
+
+      Helper.log.info "Associating PRs with tags: #{total}/#{total}"
+
+      prs_left
     end
 
     def associate_tagged_or_release_branch_pr(tags, pull_request)
