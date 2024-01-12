@@ -101,13 +101,7 @@ module GitHubChangelogGenerator
 
     def associate_tagged_or_release_branch_pr(tags, pull_request)
       found = false
-      # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
-      # fetch that. See
-      # https://developer.github.com/v3/pulls/#get-a-single-pull-request vs.
-      # https://developer.github.com/v3/pulls/#list-pull-requests
-      if pull_request["events"] && (event = pull_request["events"].find { |e| e["event"] == "merged" })
-        merged_sha = event["commit_id"]
-
+      if (merged_sha = find_merged_sha_for_pull_request(pull_request))
         found = associate_pr_by_commit_sha(tags, pull_request, merged_sha)
       else
         # Either there were no events or no merged event. GitHub's api can be
@@ -142,6 +136,15 @@ module GitHubChangelogGenerator
       else
         sha_in_release_branch?(commit_sha)
       end
+    end
+
+    def find_merged_sha_for_pull_request(pull_request)
+      # XXX Wish I could use merge_commit_sha, but gcg doesn't currently
+      # fetch that. See
+      # https://developer.github.com/v3/pulls/#get-a-single-pull-request vs.
+      # https://developer.github.com/v3/pulls/#list-pull-requests
+      event = pull_request["events"]&.find { |e| e["event"] == "merged" }
+      event["commit_id"] if event
     end
 
     # Fill :actual_date parameter of specified issue by closed date of the commit, if it was closed by commit.
