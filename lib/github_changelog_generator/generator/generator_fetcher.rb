@@ -94,11 +94,9 @@ module GitHubChangelogGenerator
         return found if found
 
         raise StandardError, "PR #{pull_request['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
-      else
+      elsif merged_sha
         puts "Warning: PR #{pull_request['number']} merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found"
-      end
-
-      unless merged_sha
+      else
         # Either there were no events or no merged event. GitHub's api can be
         # weird like that apparently.
         #

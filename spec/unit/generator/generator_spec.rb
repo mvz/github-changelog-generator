@@ -197,7 +197,7 @@ RSpec.describe GitHubChangelogGenerator::Generator do
       expect do
         expect { generator.send(:add_first_occurring_tag_to_prs, tags, prs) }
           .to raise_error StandardError, "No merge sha found for PR 23 via the GitHub API"
-      end.to output("Warning: PR 23 merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found\n").to_stdout
+      end.not_to output.to_stdout
     end
   end
 end
