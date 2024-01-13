@@ -546,7 +546,6 @@ module GitHubChangelogGenerator
         subject { described_class.new(options) }
 
         it "returns 9 sections" do
-          entry_sections.each { |sec| pp(sec.name) }
           expect(entry_sections.size).to eq 9
         end
 
@@ -731,7 +730,6 @@ module GitHubChangelogGenerator
         subject { described_class.new(options) }
 
         it "returns 10 sections" do
-          entry_sections.each { |sec| pp(sec.name) }
           expect(entry_sections.size).to eq 10
         end
 
