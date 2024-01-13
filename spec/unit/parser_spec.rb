@@ -22,7 +22,9 @@ describe GitHubChangelogGenerator::Parser do
 
       it "aborts the execution" do
         expect(Kernel).to receive(:abort)
-        expect { described_class.parse_options(argv) }.to output(/Configure which user and project to work on./).to_stderr
+        expect { described_class.parse_options(argv) }
+          .to output(/Configure which user and project to work on./).to_stderr
+          .and output.to_stdout
       end
     end
 
@@ -31,7 +33,9 @@ describe GitHubChangelogGenerator::Parser do
 
       it "aborts the execution with error message from parser" do
         expect(Kernel).to receive(:abort)
-        expect { described_class.parse_options(argv) }.to output(/invalid argument: --max-issues X/).to_stderr
+        expect { described_class.parse_options(argv) }
+          .to output(/invalid argument: --max-issues X/).to_stderr
+          .and output.to_stdout
       end
     end
 

@@ -11,14 +11,16 @@ RSpec.describe GitHubChangelogGenerator::ChangelogGenerator do
     let(:generator) { instance_double(::GitHubChangelogGenerator::Generator) }
 
     before do
-      allow(instance).to receive(:generator) { generator }
+      allow(GitHubChangelogGenerator::Generator).to receive(:new).and_return(generator)
       allow(generator).to receive(:compound_changelog) { "content" }
     end
 
     context "when full path given as the --output argument" do
-      let(:arguments) { ["--output", output_path]  }
+      let(:arguments) { ["--output", output_path] }
       it "puts the complete output path to STDOUT" do
-        expect { instance.run }.to output(Regexp.new(output_path)).to_stdout
+        expect { instance.run }
+          .to output(Regexp.new("Generated log placed in #{File.expand_path(output_path)}"))
+          .to_stdout
       end
     end
 
