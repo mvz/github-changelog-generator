@@ -134,7 +134,10 @@ RSpec.describe GitHubChangelogGenerator::Generator do
       prs = [{ "number" => "23", "events" => [{ "event" => "merged", "commit_id" => sha(5) }] }]
       tags = [{ "name" => "v1.0", "shas_in_tag" => [sha(1), sha(2)] }]
 
-      prs_left = generator.send(:add_first_occurring_tag_to_prs, tags, prs)
+      prs_left = nil
+      expect do
+        prs_left = generator.send(:add_first_occurring_tag_to_prs, tags, prs)
+      end.to output("Warning: PR 23 merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found\n").to_stdout
 
       aggregate_failures do
         expect(prs_left).to eq prs
@@ -191,8 +194,10 @@ RSpec.describe GitHubChangelogGenerator::Generator do
       prs = [{ "number" => "23" }]
       tags = [{ "name" => "v1.0", "shas_in_tag" => [sha(1), sha(2)] }]
 
-      expect { generator.send(:add_first_occurring_tag_to_prs, tags, prs) }
-        .to raise_error StandardError, "No merge sha found for PR 23 via the GitHub API"
+      expect do
+        expect { generator.send(:add_first_occurring_tag_to_prs, tags, prs) }
+          .to raise_error StandardError, "No merge sha found for PR 23 via the GitHub API"
+      end.to output("Warning: PR 23 merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found\n").to_stdout
     end
   end
 end
