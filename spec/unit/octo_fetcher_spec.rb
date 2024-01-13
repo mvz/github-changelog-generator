@@ -181,11 +181,14 @@ describe GitHubChangelogGenerator::OctoFetcher do
                                "url" =>
                                  "https://api.github.com/repos/skywinder/changelog_test/commits/ece0c3ab7142b21064b885061c55ede00ef6ce94" } }]
 
-        expect(fetcher.github_fetch_tags).to eq(expected_tags)
+        tags = nil
+        expect { tags = fetcher.github_fetch_tags }.to output(/Fetching/).to_stdout
+        expect(tags).to eq(expected_tags)
       end
 
       it "should return tags count" do
-        tags = fetcher.github_fetch_tags
+        tags = nil
+        expect { tags = fetcher.github_fetch_tags }.to output(/Fetching/).to_stdout
         expect(tags.size).to eq(4)
       end
     end
@@ -194,13 +197,16 @@ describe GitHubChangelogGenerator::OctoFetcher do
   describe "#fetch_closed_issues_and_pr" do
     context "when API call is valid", :vcr do
       it "returns issues" do
-        issues, pull_requests = fetcher.fetch_closed_issues_and_pr
+        issues = nil
+        pull_requests = nil
+        expect { issues, pull_requests = fetcher.fetch_closed_issues_and_pr }.to output(/Fetching issues/).to_stdout
         expect(issues.size).to eq(7)
         expect(pull_requests.size).to eq(14)
       end
 
       it "returns issue with proper key/values" do
-        issues, _pull_requests = fetcher.fetch_closed_issues_and_pr
+        issues = nil
+        expect { issues, _pull_requests = fetcher.fetch_closed_issues_and_pr }.to output(/Fetching issues/).to_stdout
 
         expected_issue = { "url" => "https://api.github.com/repos/skywinder/changelog_test/issues/14",
                            "repository_url" => "https://api.github.com/repos/skywinder/changelog_test",
@@ -256,7 +262,8 @@ describe GitHubChangelogGenerator::OctoFetcher do
       end
 
       it "returns pull request with proper key/values" do
-        _issues, pull_requests = fetcher.fetch_closed_issues_and_pr
+        pull_requests = nil
+        expect { _issues, pull_requests = fetcher.fetch_closed_issues_and_pr }.to output(/Fetching issues/).to_stdout
 
         expected_pr = { "url" => "https://api.github.com/repos/skywinder/changelog_test/issues/21",
                         "repository_url" => "https://api.github.com/repos/skywinder/changelog_test",
@@ -318,13 +325,15 @@ describe GitHubChangelogGenerator::OctoFetcher do
       end
 
       it "returns issues with labels" do
-        issues, _pull_requests = fetcher.fetch_closed_issues_and_pr
+        issues = nil
+        expect { issues, _pull_requests = fetcher.fetch_closed_issues_and_pr }.to output(/Fetching issues/).to_stdout
         expected = [[], [], ["Bug"], [], ["enhancement"], ["some label"], []]
         expect(issues.map { |i| i["labels"].map { |l| l["name"] } }).to eq(expected)
       end
 
       it "returns pull_requests with labels" do
-        _issues, pull_requests = fetcher.fetch_closed_issues_and_pr
+        pull_requests = nil
+        expect { _issues, pull_requests = fetcher.fetch_closed_issues_and_pr }.to output(/Fetching issues/).to_stdout
         expected = [[], [], [], [], [], ["enhancement"], [], [], ["invalid"], [], [], [], [], ["invalid"]]
         expect(pull_requests.map { |i| i["labels"].map { |l| l["name"] } }).to eq(expected)
       end
@@ -334,12 +343,14 @@ describe GitHubChangelogGenerator::OctoFetcher do
   describe "#fetch_closed_pull_requests" do
     context "when API call is valid", :vcr do
       it "returns pull requests" do
-        pull_requests = fetcher.fetch_closed_pull_requests
+        pull_requests = nil
+        expect { pull_requests = fetcher.fetch_closed_pull_requests }.to output(/Fetching merged dates/).to_stdout
         expect(pull_requests.size).to eq(14)
       end
 
       it "returns correct pull request keys" do
-        pull_requests = fetcher.fetch_closed_pull_requests
+        pull_requests = nil
+        expect { pull_requests = fetcher.fetch_closed_pull_requests }.to output(/Fetching merged dates/).to_stdout
 
         pr = pull_requests.first
         expect(pr.keys).to eq(%w[url id html_url diff_url patch_url issue_url number state locked title user body created_at updated_at closed_at merged_at merge_commit_sha assignee assignees milestone commits_url review_comments_url review_comment_url comments_url statuses_url head base _links])
@@ -399,7 +410,7 @@ describe GitHubChangelogGenerator::OctoFetcher do
         # Check that they are blank to begin with
         expect(issues.first["events"]).to be_nil
 
-        fetcher.fetch_events_async(issues)
+        expect { fetcher.fetch_events_async(issues) }.to output(/Fetching events/).to_stdout
         issue_events = issues.first["events"]
 
         expected_events = [{ "id" => 357_462_189,
@@ -492,7 +503,8 @@ describe GitHubChangelogGenerator::OctoFetcher do
           user: "skywinder",
           project: "changelog_test"
         )
-        dt = skywinder.fetch_date_of_tag(tag)
+        dt = nil
+        expect { dt = skywinder.fetch_date_of_tag(tag) }.to output("").to_stdout
         expect(dt).to eq(Time.parse("2015-03-04 19:01:48 UTC"))
       end
     end
@@ -544,7 +556,8 @@ describe GitHubChangelogGenerator::OctoFetcher do
                   "commit_url" =>
                     "https://api.github.com/repos/skywinder/changelog_test/commits/decfe840d1a1b86e0c28700de5362d3365a29555",
                   "created_at" => "2015-07-16T12:21:16Z" }
-        commit = fetcher.fetch_commit(event["commit_id"])
+        commit = nil
+        expect { commit = fetcher.fetch_commit(event["commit_id"]) }.to output("").to_stdout
 
         expectations = [
           %w[sha decfe840d1a1b86e0c28700de5362d3365a29555],
@@ -580,12 +593,10 @@ describe GitHubChangelogGenerator::OctoFetcher do
 
   describe "#commits" do
     context "when API is valid", :vcr do
-      subject do
-        fetcher.commits
-      end
-
       it "returns commits" do
-        expect(subject.last["sha"]).to eq("4c2d6d1ed58bdb24b870dcb5d9f2ceed0283d69d")
+        commits = nil
+        expect { commits = fetcher.commits }.to output("").to_stdout
+        expect(commits.last["sha"]).to eq("4c2d6d1ed58bdb24b870dcb5d9f2ceed0283d69d")
       end
     end
   end
