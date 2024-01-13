@@ -87,10 +87,16 @@ module GitHubChangelogGenerator
       # The PR was not found in the list of tags by its merge commit and not
       # found in any specified release branch, or no merged event could be
       # find. Either way, fall back to rebased commit comment.
-      @fetcher.fetch_comments_async([pull_request])
-      found = associate_rebase_comment_pr(tags, pull_request)
+      rebased_sha = find_rebase_comment_sha_for_pull_request(pull_request)
 
-      return found if found
+      if rebased_sha
+        found = associate_pr_by_commit_sha(tags, pull_request, rebased_sha)
+        return found if found
+
+        raise StandardError, "PR #{pull_request['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
+      else
+        puts "Warning: PR #{pull_request['number']} merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found"
+      end
 
       unless merged_sha
         # Either there were no events or no merged event. GitHub's api can be
@@ -100,17 +106,6 @@ module GitHubChangelogGenerator
         raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API"
       end
 
-      found
-    end
-
-    def associate_rebase_comment_pr(tags, pull_request)
-      found = false
-      if (rebased_sha = find_rebase_comment_sha_for_pull_request(pull_request))
-        found = associate_pr_by_commit_sha(tags, pull_request, rebased_sha)
-        found or raise StandardError, "PR #{pull_request['number']} has a rebased SHA comment but that SHA was not found in the release branch or any tags"
-      else
-        puts "Warning: PR #{pull_request['number']} merge commit was not found in the release branch or tagged git history and no rebased SHA comment was found"
-      end
       found
     end
 
@@ -134,6 +129,7 @@ module GitHubChangelogGenerator
     end
 
     def find_rebase_comment_sha_for_pull_request(pull_request)
+      @fetcher.fetch_comments_async([pull_request])
       return unless pull_request["comments"]
 
       rebased_comment = pull_request["comments"].reverse.find { |c| c["body"].match(%r{rebased commit: ([0-9a-f]{40})}i) }
