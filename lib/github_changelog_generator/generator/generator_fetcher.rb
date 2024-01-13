@@ -46,7 +46,6 @@ module GitHubChangelogGenerator
       total = prs.count
 
       prs_left = associate_tagged_or_release_branch_prs(tags, prs, total)
-      prs_left = associate_rebase_comment_prs(tags, prs_left, total) if prs_left.any?
 
       Helper.log.info "Associating PRs with tags: #{total}/#{total}"
 
@@ -75,34 +74,18 @@ module GitHubChangelogGenerator
       end
     end
 
-    # Associate merged PRs by the SHA detected in github comments of the form
-    # "rebased commit: <sha>". For use when the merge_commit_sha is not in the
-    # actual git history due to rebase.
-    #
-    # @param [Array] tags The tags sorted by time, newest to oldest.
-    # @param [Array] prs_left The PRs not yet associated with any tag or branch.
-    # @return [Array] PRs without rebase comments.
-    def associate_rebase_comment_prs(tags, prs_left, total)
-      i = total - prs_left.count
-      # Any remaining PRs were not found in the list of tags by their merge
-      # commit and not found in any specified release branch. Fallback to
-      # rebased commit comment.
-      @fetcher.fetch_comments_async(prs_left)
-      prs_left.reject do |pr|
-        found = associate_rebase_comment_pr(tags, pr)
-
-        if found
-          i += 1
-          print("Associating PRs with tags: #{i}/#{total}\r") if @options[:verbose]
-        end
-        found
-      end
-    end
-
     def associate_tagged_or_release_branch_pr(tags, pull_request)
       found = false
       if (merged_sha = find_merged_sha_for_pull_request(pull_request))
         found = associate_pr_by_commit_sha(tags, pull_request, merged_sha)
+
+        unless found
+          # The PR was not found in the list of tags by its merge commit and
+          # not found in any specified release branch. Fall back to rebased
+          # commit comment.
+          @fetcher.fetch_comments_async([pull_request])
+          found = associate_rebase_comment_pr(tags, pull_request)
+        end
       else
         # Either there were no events or no merged event. GitHub's api can be
         # weird like that apparently. Check for a rebased comment before erroring.
