@@ -136,7 +136,9 @@ describe GitHubChangelogGenerator::OctoFetcher do
       end
 
       it "should raise Unauthorized error" do
-        expect { fetcher.github_fetch_tags }.to raise_error SystemExit, "Error: wrong GitHub token"
+        expect do
+          expect { fetcher.github_fetch_tags }.to raise_error SystemExit, "Error: wrong GitHub token"
+        end.to output("Error: wrong GitHub token\n").to_stderr
       end
     end
 
