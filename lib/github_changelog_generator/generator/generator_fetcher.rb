@@ -76,25 +76,30 @@ module GitHubChangelogGenerator
 
     def associate_tagged_or_release_branch_pr(tags, pull_request)
       found = false
-      if (merged_sha = find_merged_sha_for_pull_request(pull_request))
+
+      merged_sha = find_merged_sha_for_pull_request(pull_request)
+
+      if merged_sha
         found = associate_pr_by_commit_sha(tags, pull_request, merged_sha)
-
-        unless found
-          # The PR was not found in the list of tags by its merge commit and
-          # not found in any specified release branch. Fall back to rebased
-          # commit comment.
-          @fetcher.fetch_comments_async([pull_request])
-          found = associate_rebase_comment_pr(tags, pull_request)
-        end
-      else
-        # Either there were no events or no merged event. GitHub's api can be
-        # weird like that apparently. Check for a rebased comment before erroring.
-        @fetcher.fetch_comments_async([pull_request])
-        rebased_found = associate_rebase_comment_pr(tags, pull_request)
-        raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API" unless rebased_found
-
-        found = true
+        return found if found
       end
+
+      # The PR was not found in the list of tags by its merge commit and not
+      # found in any specified release branch, or no merged event could be
+      # find. Either way, fall back to rebased commit comment.
+      @fetcher.fetch_comments_async([pull_request])
+      found = associate_rebase_comment_pr(tags, pull_request)
+
+      return found if found
+
+      unless merged_sha
+        # Either there were no events or no merged event. GitHub's api can be
+        # weird like that apparently.
+        #
+        # Looking for a rebased comment did not help either. Error out.
+        raise StandardError, "No merge sha found for PR #{pull_request['number']} via the GitHub API"
+      end
+
       found
     end
 
